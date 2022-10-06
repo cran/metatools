@@ -1,7 +1,7 @@
 Package: metatools
 Type: Package
 Title: Enable the Use of 'metacore' to Help Create and Check Dataset
-Version: 0.1.1
+Version: 0.1.3
 Authors@R: c(
          person(given = "Christina",
              family = "Fillmore",
@@ -20,14 +20,15 @@ Authors@R: c(
 Description: Uses the metadata information stored in 'metacore' objects to check and build metadata associated columns.
 License: MIT + file LICENSE
 Encoding: UTF-8
-RoxygenNote: 7.1.2
-Imports: dplyr, metacore (>= 0.0.4), purrr, rlang, stringr, tidyr
-Suggests: tibble, testthat (>= 3.0.0), haven, magrittr, covr,
-        safetyData
+RoxygenNote: 7.2.1
+Imports: dplyr, metacore (>= 0.0.4), purrr, rlang, stringr, tidyr,
+        tibble, magrittr
+Suggests: testthat (>= 3.0.0), haven, covr, safetyData, admiral.test
 Config/testthat/edition: 3
 URL: https://pharmaverse.github.io/metatools/
+BugReports: https://github.com/pharmaverse/metatools/issues
 NeedsCompilation: no
-Packaged: 2022-04-19 10:00:09 UTC; cf124952
+Packaged: 2022-10-06 08:44:19 UTC; christinafillmore
 Author: Christina Fillmore [aut, cre] (<https://orcid.org/0000-0003-0595-2302>),
   Mike Stackhouse [aut] (<https://orcid.org/0000-0001-6030-723X>),
   GlaxoSmithKline LLC [cph, fnd],
@@ -35,4 +36,4 @@ Author: Christina Fillmore [aut, cre] (<https://orcid.org/0000-0003-0595-2302>),
   Atorus Research LLC [cph, fnd]
 Maintainer: Christina Fillmore <christina.e.fillmore@gsk.com>
 Repository: CRAN
-Date/Publication: 2022-04-20 08:52:30 UTC
+Date/Publication: 2022-10-06 09:00:02 UTC
