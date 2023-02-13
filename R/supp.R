@@ -110,7 +110,7 @@ make_supp_qual <- function(dataset, metacore, dataset_name = NULL){
              qorig = origin, qeval = qeval,
              idvar = idvar)  %>%
       distinct() #Protection against bad specs
-   #TODO Addin in checks/coerision for when combining cols of different types
+   #TODO Addin in checks/coercion for when combining cols of different types
    pmap_dfr(supp_meta, build_qnam, dataset=dataset) %>%
       arrange(USUBJID, QNAM, IDVARVAL)
 }
@@ -178,6 +178,7 @@ combine_supp <- function(dataset, supp){
 #' @noRd
 #' @importFrom dplyr anti_join
 #' @importFrom utils capture.output
+#' @importFrom stringr str_trim
 combine_supp_by_idvar <- function(dataset, supp){
    # Get the IDVAR value to allow for renaming of IDVARVAL
    id_var <- supp %>%
@@ -196,10 +197,12 @@ combine_supp_by_idvar <- function(dataset, supp){
 
       by <- c("STUDYID", "DOMAIN", "USUBJID", "IDVARVAL")
       wide_x <- wide_x %>%
-         mutate(IDVARVAL = as.character(IDVARVAL))
+         mutate(IDVARVAL = as.character(IDVARVAL) %>%
+                   str_trim())
       #  Make a dummy IDVARVAL variable to merge on, won't effect the dataset
       dataset_chr <- dataset %>%
-         mutate(IDVARVAL = as.character(!!id_var_sym))
+         mutate(IDVARVAL = as.character(!!id_var_sym) %>%
+                   str_trim())
 
       out <- left_join(dataset_chr, wide_x,
                        by = by) %>%
