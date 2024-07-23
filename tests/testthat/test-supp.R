@@ -173,26 +173,23 @@ test_that("combine_supp", {
    dataset = ae %>%
       select(-starts_with("SUPP"))
    supp = suppae
-   multi_out <- combine_supp(ae, suppae) %>%
-      dplyr::summarise(v1 = all(all.equal(SUPPVAR1.x, SUPPVAR1.y)), #Because there are NA rows
-                v2 = all(all.equal(SUPPVAR2.x, SUPPVAR2.y)),
-                v3 = all(SUPPVAR3.x == SUPPVAR3.y)) %>%
-      tidyr::pivot_longer(everything()) %>%
-      pull(value) %>%
-      all()
-   expect_equal(multi_out, TRUE)
+
+   multi_out <- combine_supp(dataset, suppae)
+   expect_equal(multi_out$SUPPVAR1, ae$SUPPVAR1)
+   expect_equal(multi_out$SUPPVAR2, ae$SUPPVAR2)
+   expect_equal(multi_out$SUPPVAR3, ae$SUPPVAR3)
 })
 
 test_that("combine_supp works with different IDVARVAL classes", {
    expect_equal(
-      combine_supp(admiral.test::admiral_ae, admiral.test::admiral_suppae) %>%
+      combine_supp(pharmaversesdtm::ae, pharmaversesdtm::suppae) %>%
       pull(AESEQ),
-      admiral.test::admiral_ae %>% pull(AESEQ)
+      pharmaversesdtm::ae %>% pull(AESEQ)
    )
 })
 
 test_that("combine_supp works with without QEVAL", {
-   expect_silent(combine_supp(admiral.test::admiral_tr, admiral.test::admiral_supptr))
+   expect_silent(combine_supp(pharmaversesdtm::tr_onco, pharmaversesdtm::supptr_onco))
 })
 
 test_that("supp data that does not match the main data will raise a warning", {
@@ -217,6 +214,35 @@ test_that("Floating point correction works", {
       select(USUBJID, AESEQ = IDVARVAL, AETRTEM = QVAL) %>%
       arrange(USUBJID, AESEQ)
    expect_equal(combo_ae, supp_check)
-   })
+})
 
+test_that("zero-row supp returns data unchanged with a warning (#45)", {
+  expect_warning(
+    result <- combine_supp(safetyData::sdtm_ae, safetyData::sdtm_suppae[0,]),
+    regexp = "Zero rows in supp, returning original dataset unchanged"
+  )
+  expect_equal(result, safetyData::sdtm_ae)
+})
 
+test_that("multiple different IDVAR map to the same QNAM works", {
+  simple_ae <-
+    safetyData::sdtm_ae |>
+    filter(USUBJID %in% c("01-701-1015", "01-701-1023"))
+  simple_suppae <- safetyData::sdtm_suppae[c(1, 4), ]
+  simple_suppae$IDVAR[2] <- "AEDTC"
+  simple_suppae$IDVARVAL[2] <- "2012-09-02"
+  expect_equal(
+    combine_supp(simple_ae, supp = simple_suppae)$AETRTEM,
+    c("Y", NA, NA, NA, NA, NA, "Y")
+  )
+
+  # Replace the value in error
+  simple_suppae <- safetyData::sdtm_suppae[c(1, 4, 7), ]
+  simple_suppae$IDVAR[2] <- "AEDTC"
+  simple_suppae$IDVARVAL[2] <- "2012-09-02"
+
+  expect_error(
+    combine_supp(simple_ae, supp = simple_suppae),
+    regexp = "An unexpected number of rows were replaced while merging QNAM AETRTEM and IDVAR AESEQ"
+  )
+})
