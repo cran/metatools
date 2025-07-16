@@ -1,6 +1,8 @@
+# Suppress cli output during testing
+options(cli.default_handler = function(...) { })
 
 load(metacore::metacore_example("pilot_ADaM.rda"))
-spec <- metacore %>% select_dataset("ADSL")
+spec <- metacore %>% select_dataset("ADSL", quiet = TRUE)
 data <- haven::read_xpt(metatools_example("adsl.xpt"))
 test_that("sort_order", {
   data %>%
