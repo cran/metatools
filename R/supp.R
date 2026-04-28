@@ -6,61 +6,74 @@
 #' @param idvar IDVAR variable name (provided as a string)
 #' @param qeval QEVAL value to be populated for this QNAM
 #' @param qorig QORIG value to be populated for this QNAM
+#' @param verbose Character string controlling message verbosity. One of:
+#'   \describe{
+#'     \item{`"message"`}{Show both warnings and messages (default)}
+#'     \item{`"warn"`}{Show warnings but suppress messages}
+#'     \item{`"silent"`}{Suppress all warnings and messages}
+#'   }
 #'
 #' @return Observations structured in SUPP format
 #' @export
 #'
-#'
-build_qnam <- function(dataset, qnam, qlabel, idvar, qeval, qorig) {
-   # Need QNAM as a variable
-   qval <- as.symbol(qnam)
+build_qnam <- function(dataset, qnam, qlabel, idvar, qeval, qorig,
+                       verbose = c("message", "warn", "silent")) {
+  verbose <- validate_verbose(verbose)
 
-   # DM won't have an IDVAR so handle that
-   if (is.na(idvar) || idvar == '') {
-      dataset <- dataset %>%
-         mutate(IDVARVAL = idvar)
-      idvarval <- sym('IDVARVAL')
+  # Need QNAM as a variable
+  qval <- as.symbol(qnam)
 
-   } else {
-      idvarval <- as.symbol(idvar)
-   }
+  # DM won't have an IDVAR so handle that
+  if (is.na(idvar) || idvar == "") {
+    dataset <- dataset %>%
+      mutate(IDVARVAL = idvar)
+    idvarval <- sym("IDVARVAL")
+  } else {
+    idvarval <- as.symbol(idvar)
+  }
 
-   dup_sup <- dataset %>%
-      select(STUDYID, RDOMAIN = DOMAIN, USUBJID, !!idvarval, !!qval) %>%
-      rename(IDVARVAL = !!idvarval, QVAL = !!qval) %>%
-      filter(!is.na(QVAL)) %>%
-      mutate(
-         IDVAR = idvar,
-         QNAM = qnam,
-         QLABEL = qlabel,
-         QORIG = qorig,
-         QEVAL = qeval
-      )
+  dup_sup <- dataset %>%
+    select(STUDYID, RDOMAIN = DOMAIN, USUBJID, !!idvarval, !!qval) %>%
+    rename(IDVARVAL = !!idvarval, QVAL = !!qval) %>%
+    filter(!is.na(QVAL)) %>%
+    mutate(
+      IDVAR = idvar,
+      QNAM = qnam,
+      QLABEL = qlabel,
+      QORIG = qorig,
+      QEVAL = qeval
+    )
 
-   out <- dup_sup %>%
-      distinct(STUDYID, RDOMAIN,
-               USUBJID, IDVARVAL, QNAM, .keep_all = TRUE) %>%
-      select(STUDYID, RDOMAIN, USUBJID, IDVAR,
-             IDVARVAL, QNAM, QLABEL, QVAL,
-             QORIG, QEVAL)
+  out <- dup_sup %>%
+    distinct(STUDYID, RDOMAIN,
+      USUBJID, IDVARVAL, QNAM,
+      .keep_all = TRUE
+    ) %>%
+    select(
+      STUDYID, RDOMAIN, USUBJID, IDVAR,
+      IDVARVAL, QNAM, QLABEL, QVAL,
+      QORIG, QEVAL
+    )
 
-   test_out <- dup_sup %>%
-      distinct()
-   if(nrow(out) != nrow(test_out)){
-      stop("The combination of STUDYID, RDOMAIN, USUBJID, IDVARVAL, QNAM is ambiguous. Consider modifying the IDVAR",
-           call. = FALSE)
-   }
+  test_out <- dup_sup %>%
+    distinct()
+  if (nrow(out) != nrow(test_out)) {
+    stop("The combination of STUDYID, RDOMAIN, USUBJID, IDVARVAL, QNAM is ambiguous. Consider modifying the IDVAR",
+      call. = FALSE
+    )
+  }
 
-   blank_test <- out %>%
-      pull(QVAL)
-   if(any(blank_test == "")){
+  blank_test <- out %>%
+    pull(QVAL)
+  if (any(blank_test == "")) {
+    if (check_message(verbose)) {
       message(paste0("Empty QVAL rows removed for QNAM = ", unique(out$QNAM)))
-      out <- out %>%
-         filter(QVAL != "")
-   }
-   out
+    }
+    out <- out %>%
+      filter(QVAL != "")
+  }
+  out
 }
-
 
 
 #' Make Supplemental Qualifier
@@ -87,39 +100,41 @@ build_qnam <- function(dataset, qnam, qlabel, idvar, qeval, qorig) {
 #' spec <- metacore %>% select_dataset("AE")
 #' ae <- combine_supp(sdtm_ae, sdtm_suppae)
 #' make_supp_qual(ae, spec) %>% as_tibble()
-make_supp_qual <- function(dataset, metacore, dataset_name = deprecated()){
-   if (is_present(dataset_name)) {
-      lifecycle::deprecate_warn(
-         when = "0.2.0",
-         what = "check_variables(dataset_name)",
-         details = cli_text("The {.arg dataset_name} argument will be removed in
-                            a future release. Please use {.fcn metacore::select_dataset}
-                            to subset the {.obj metacore} object to obtain metadata
-                            for a single dataset.")
-      )
-      metacore <- make_lone_dataset(metacore, dataset_name)
-   }
-   verify_DatasetMeta(metacore)
+make_supp_qual <- function(dataset, metacore, dataset_name = deprecated()) {
+  if (is_present(dataset_name)) {
+    lifecycle::deprecate_warn(
+      when = "0.2.0",
+      what = "make_supp_qual(dataset_name)",
+      details = cli_inform(c("i" = col_red("The {.arg dataset_name} argument will be removed in a future release.
+      Please use {.fn metacore::select_dataset} to subset the {.obj metacore} object to obtain
+      metadata for a single dataset.")))
+    )
+    metacore <- make_lone_dataset(metacore, dataset_name)
+  }
+  verify_DatasetMeta(metacore)
 
-   supp_vars <- metacore$ds_vars %>%
-      filter(supp_flag)
-   if(nrow(supp_vars) == 0){
-      stop("No supplemental variables specified in metacore object. Please check your specifications",
-           call. = FALSE)
-   }
+  supp_vars <- metacore$ds_vars %>%
+    filter(supp_flag)
+  if (nrow(supp_vars) == 0) {
+    stop("No supplemental variables specified in metacore object. Please check your specifications",
+      call. = FALSE
+    )
+  }
 
-   supp_meta <- supp_vars %>%
-      select(dataset, variable) %>%
-      left_join(metacore$var_spec, by = "variable") %>%
-      left_join(metacore$value_spec, by = c("dataset", "variable")) %>%
-      left_join(metacore$supp,  by = c("dataset", "variable")) %>%
-      select(qnam = variable, qlabel = label,
-             qorig = origin, qeval = qeval,
-             idvar = idvar)  %>%
-      distinct() #Protection against bad specs
-   #TODO Addin in checks/coercion for when combining cols of different types
-   pmap_dfr(supp_meta, build_qnam, dataset=dataset) %>%
-      arrange(USUBJID, QNAM, IDVARVAL)
+  supp_meta <- supp_vars %>%
+    select(dataset, variable) %>%
+    left_join(metacore$var_spec, by = "variable") %>%
+    left_join(metacore$value_spec, by = c("dataset", "variable")) %>%
+    left_join(metacore$supp, by = c("dataset", "variable")) %>%
+    select(
+      qnam = variable, qlabel = label,
+      qorig = origin, qeval = qeval,
+      idvar = idvar
+    ) %>%
+    distinct() # Protection against bad specs
+  # TODO Addin in checks/coercion for when combining cols of different types
+  pmap_dfr(supp_meta, build_qnam, dataset = dataset) %>%
+    arrange(USUBJID, QNAM, IDVARVAL)
 }
 
 #' Combine the Domain and Supplemental Qualifier
@@ -133,62 +148,119 @@ make_supp_qual <- function(dataset, metacore, dataset_name = deprecated()){
 #' @examples
 #' library(safetyData)
 #' library(tibble)
-#' combine_supp(sdtm_ae, sdtm_suppae)  %>% as_tibble()
-combine_supp <- function(dataset, supp){
-   if(!is.data.frame(dataset) | !is.data.frame(supp)){
-      stop("You must supply a domain and supplemental dataset", call. = FALSE)
-   }
+#' combine_supp(sdtm_ae, sdtm_suppae) %>% as_tibble()
+combine_supp <- function(dataset, supp) {
+  if (!is.data.frame(dataset) | !is.data.frame(supp)) {
+    stop("You must supply a domain and supplemental dataset", call. = FALSE)
+  }
   if (nrow(supp) == 0) {
     warning("Zero rows in supp, returning original dataset unchanged")
     return(dataset)
   }
-   supp_cols <- c("STUDYID", "RDOMAIN", "USUBJID", "IDVAR", "IDVARVAL",
-                  "QNAM", "QLABEL", "QVAL", "QORIG")
-   maybe <- c("QEVAL")
-   ext_supp_col <- names(supp) %>%  discard(~. %in% c(supp_cols, maybe))
-   mis_supp_col <- supp_cols %>%  discard(~. %in% names(supp))
-   if(length(ext_supp_col) > 0 | length(mis_supp_col) > 0){
-      mess <- "Supplemental datasets need to comply with CDISC standards\n"
-      ext <- if_else(length(ext_supp_col) > 0,
-                     paste0("The following columns need to be removed:\n", paste0(ext_supp_col, collapse = "\n")),
-                     "")
-      mis <- if_else(length(mis_supp_col) > 0,
-                     paste0("The following columns are missing:\n", paste0(mis_supp_col, collapse = "\n")),
-                     "")
-      stop(paste0(mess, ext, mis))
-   }
-   all_qnam <- unique(supp$QNAM)
-   existing_qnam <- intersect(all_qnam, names(dataset))
-   if (length(existing_qnam) > 0) {
-     stop(
-       "The following column(s) would be created by combine_supp(), but are already in the original dataset:\n  ",
-       paste(existing_qnam, sep = ", ")
-     )
-   }
 
-   # In order to prevent issues when there are multiple IDVARS we need to merge
-   # each IDVAR into the domain seperately (otherwise there is problems when the
-   # two IDVARS don't overlap)
+  # Verify required dataset cols are present
+  required_vars <- c("STUDYID", "DOMAIN", "USUBJID")
+  missing_vars <- setdiff(required_vars, names(dataset))
 
-   supp_wides_prep <-
-     supp %>%
-     select(-any_of(c("QLABEL", "QORIG", "QEVAL"))) %>% #Removing columns not for the main dataset
-     rename(DOMAIN = RDOMAIN) %>%
-     group_by(IDVAR, QNAM) %>% #For when there are multiple IDs
-     group_split()
+  if (length(missing_vars) > 0) {
+    cli::cli_abort(c(
+      "x" = "Core SDTM variables are missing from the dataset:",
+      "i" = "{.val {missing_vars}}"
+    ))
+  }
 
-   supp_wides <- purrr::pmap(.l = list(supp = supp_wides_prep), .f = combine_supp_make_wide)
-   ret <- reduce(.x = append(list(dataset), supp_wides), .f = combine_supp_join)
-   ret$IDVARVAL <- NULL
 
-   labels_to_add <- unique(supp[, c("QNAM", "QLABEL")])
-   for (current_idx in seq_len(nrow(labels_to_add))) {
-     current_col <- labels_to_add$QNAM[current_idx]
-     current_label <- labels_to_add$QLABEL[current_idx]
-     attr(ret[[current_col]], "label") <- current_label
-   }
+  # Verify required supp cols are present
+  supp_cols <- c(
+    "STUDYID", "RDOMAIN", "USUBJID", "IDVAR", "IDVARVAL",
+    "QNAM", "QLABEL", "QVAL", "QORIG"
+  )
+  maybe <- c("QEVAL")
 
-   ret
+  ext_supp_col <- setdiff(names(supp), c(supp_cols, maybe))
+  mis_supp_col <- setdiff(supp_cols, names(supp))
+
+  if (length(ext_supp_col) > 0 || length(mis_supp_col) > 0) {
+    cli::cli_abort(c(
+      "x" = "Supplemental Qualifier dataset does not comply with CDISC SDTM structure.",
+      if (length(ext_supp_col) > 0) {
+        c(
+          "!" = "Unexpected columns detected (must be removed):",
+          "i" = "{.val {ext_supp_col}}"
+        )
+      },
+      if (length(mis_supp_col) > 0) {
+        c(
+          "!" = "Required columns are missing:",
+          "i" = "{.val {mis_supp_col}}"
+        )
+      }
+    ))
+  }
+
+  # Verify qnam values from supp do not conflict with main dataset
+  all_qnam <- unique(supp$QNAM)
+  existing_qnam <- intersect(all_qnam, names(dataset))
+
+  if (length(existing_qnam) > 0) {
+    cli::cli_abort(c(
+      "x" = "Column name conflict detected when combining SUPP data.",
+      "!" = "The following QNAM values would create variables that already exist in the dataset:",
+      "x" = "{.val {existing_qnam}}",
+      "i" = "Renaming or removing these SUPP qualifiers is required before merging."
+    ))
+  }
+
+  # In order to prevent issues when there are multiple IDVARS we need to merge
+  # each IDVAR into the domain separately (otherwise there is problems when the
+  # two IDVARS don't overlap)
+  supp_wides_prep <-
+    supp %>%
+    select(-any_of(c("QLABEL", "QORIG", "QEVAL"))) %>% # Removing columns not for the main dataset
+    rename(DOMAIN = RDOMAIN) %>%
+    group_by(IDVAR, QNAM) %>% # For when there are multiple IDs
+    group_split()
+
+  supp_wides <- purrr::pmap(.l = list(supp = supp_wides_prep), .f = combine_supp_make_wide)
+
+  # Verify that each idvar in supp domain is present in the main dataset
+  idvars <- sapply(supp_wides, function(x) x$IDVAR[1])
+  invalid_idvars <- unique(
+    idvars[
+      !idvars %in% names(dataset) &
+        !is.na(idvars) &
+        idvars != "NA"
+    ]
+  )
+
+  if (length(invalid_idvars) > 0) {
+    supp_wides <- supp_wides[
+      vapply(supp_wides, function(x) !(x$IDVAR[1] %in% invalid_idvars), logical(1))
+    ]
+
+    cli::cli_warn(c(
+      "!" = "The following {.field IDVAR} values from the SUPP dataset will not be joined:",
+      "x" = "{.val {invalid_idvars}}",
+      "i" = "They do not exist as variables in the main dataset."
+    ))
+  }
+
+  # If all idvars are invalid then return the main dataset
+  if (length(supp_wides) == 0) {
+    return(dataset)
+  }
+
+  ret <- reduce(.x = append(list(dataset), supp_wides), .f = combine_supp_join)
+  ret$IDVARVAL <- NULL
+
+  labels_to_add <- unique(supp[, c("QNAM", "QLABEL")])
+  for (current_idx in seq_len(nrow(labels_to_add))) {
+    current_col <- labels_to_add$QNAM[current_idx]
+    current_label <- labels_to_add$QLABEL[current_idx]
+    attr(ret[[current_col]], "label") <- current_label
+  }
+
+  ret
 }
 
 # Create a wide version of `supp` for merging into the source dataset.
@@ -247,26 +319,36 @@ combine_supp_join <- function(dataset, supp) {
     expected_na_difference <- sum(!is.na(supp_prep[[new_column]]))
     actual_na_difference <- sum(!mask_na_ret_after) - sum(!mask_na_ret_before)
     if (expected_na_difference != actual_na_difference) {
-      stop(
-        "An unexpected number of rows were replaced while merging QNAM ", current_qnam, " and IDVAR ", current_idvar,
-        "\n  Please verify that your SUPP domain is valid SDTM with only one matched row per key column set")
+      cli::cli_abort(c(
+        "X" = "SUPP domain merge failed due to inconsistent key mapping.",
+        "i" = "While processing {.field QNAM} = {.val {current_qnam}} with {.field IDVAR} = {.val {current_idvar}}.",
+        "i" = "This usually indicates that multiple records in the SUPP domain map to the same parent record.",
+        "i" = "Each combination of STUDYID, USUBJID, IDVAR, and IDVARVAL should uniquely identify a row.",
+        "i" = "Check for duplicate or conflicting mappings in SUPP-- for this QNAM."
+      ), call = rlang::caller_env(n = 3)) # caller_env depth of 3 is "combine_supp"
     }
   } else {
     # Verify that nothing will be missed
-    missing <- anti_join(supp_prep, ret, by = by)
+    missing <- dplyr::anti_join(supp_prep, ret, by = by)
 
-    # Add message for when there are rows in the supp that didn't get merged
-    if(nrow(missing) > 0) {
-      missing_txt <-
-        capture.output(
-          missing %>%
-            select(USUBJID, all_of(current_idvar)) %>%
-            print()
-        ) %>%
-        paste0(collapse = "\n")
-      stop(paste0("Not all rows of the Supp were merged. The following rows are missing:\n",
-                  missing_txt),
-           call. = FALSE)
+    # Add a message for when there are rows in the dataset that didn't get merged
+    if (nrow(missing) > 0) {
+      missing_display <- missing %>%
+        dplyr::transmute(
+          USUBJID,
+          !!current_idvar := IDVARVAL
+        )
+
+      cli::cli_warn(c(
+        "x" = "Some SUPP records were not merged into the main dataset.",
+        "!" = "Unmatched rows:",
+        sprintf(
+          "{.strong USUBJID}: {.val %s}  |  {.strong %s}: {.val %s}",
+          missing_display$USUBJID,
+          current_idvar,
+          missing_display[[current_idvar]]
+        )
+      ))
     }
 
     # join the data
@@ -282,49 +364,55 @@ combine_supp_join <- function(dataset, supp) {
 #'
 #' @return list of datasets
 #' @noRd
-combine_supp_by_idvar <- function(dataset, supp){
-   # Get the IDVAR value to allow for renaming of IDVARVAL
-   id_var <- unique(supp$IDVAR)
+combine_supp_by_idvar <- function(dataset, supp) {
+  # Get the IDVAR value to allow for renaming of IDVARVAL
+  id_var <- unique(supp$IDVAR)
 
-   wide_x <- supp %>%
-      pivot_wider(
-         names_from = QNAM,
-         values_from = QVAL) %>%
-      select(-IDVAR)
+  wide_x <- supp %>%
+    pivot_wider(
+      names_from = QNAM,
+      values_from = QVAL
+    ) %>%
+    select(-IDVAR)
 
-   if(!is.na(id_var) && id_var != ""){
-      id_var_sym <- sym(id_var)
+  if (!is.na(id_var) && id_var != "") {
+    id_var_sym <- sym(id_var)
 
-      by <- c("STUDYID", "DOMAIN", "USUBJID", "IDVARVAL")
-      wide_x <- wide_x %>%
-         mutate(IDVARVAL = as.character(IDVARVAL) %>%
-                   str_trim())
-      #  Make a dummy IDVARVAL variable to merge on, won't effect the dataset
-      dataset_chr <- dataset %>%
-         mutate(IDVARVAL = as.character(!!id_var_sym) %>%
-                   str_trim())
+    by <- c("STUDYID", "DOMAIN", "USUBJID", "IDVARVAL")
+    wide_x <- wide_x %>%
+      mutate(IDVARVAL = as.character(IDVARVAL) %>%
+        str_trim())
+    #  Make a dummy IDVARVAL variable to merge on, won't effect the dataset
+    dataset_chr <- dataset %>%
+      mutate(IDVARVAL = as.character(!!id_var_sym) %>%
+        str_trim())
 
-      out <- left_join(dataset_chr, wide_x,
-                       by = by) %>%
-         select(-IDVARVAL)
-      missing <- anti_join(wide_x,dataset_chr, by = by)
+    out <- left_join(dataset_chr, wide_x,
+      by = by
+    ) %>%
+      select(-IDVARVAL)
+    missing <- anti_join(wide_x, dataset_chr, by = by)
 
-      # Add message for when there are rows in the supp that didn't get merged
-      if(nrow(missing) > 0) {
-         missing_txt <- capture.output(missing %>%
-                                          select(USUBJID, !!sym(id_var)) %>%
-                                          print()) %>%
-            paste0(collapse = "\n")
-         stop(paste0("Not all rows of the Supp were merged. The following rows are missing:\n",
-                     missing_txt),
-              call. = FALSE)
-      }
-
-   } else {
-      wide_x <- wide_x %>%
-         select(-IDVARVAL)
-      out <- left_join(dataset, wide_x,
-                       by = c("STUDYID", "DOMAIN", "USUBJID"))
-   }
-   out
+    # Add message for when there are rows in the supp that didn't get merged
+    if (nrow(missing) > 0) {
+      missing_txt <- capture.output(missing %>%
+        select(USUBJID, !!sym(id_var)) %>%
+        print()) %>%
+        paste0(collapse = "\n")
+      stop(
+        paste0(
+          "Not all rows of the Supp were merged. The following rows are missing:\n",
+          missing_txt
+        ),
+        call. = FALSE
+      )
+    }
+  } else {
+    wide_x <- wide_x %>%
+      select(-IDVARVAL)
+    out <- left_join(dataset, wide_x,
+      by = c("STUDYID", "DOMAIN", "USUBJID")
+    )
+  }
+  out
 }

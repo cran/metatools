@@ -1,7 +1,7 @@
 Type: Package
 Package: metatools
 Title: Enable the Use of 'metacore' to Help Create and Check Dataset
-Version: 0.2.0
+Version: 0.3.0
 Authors@R: c(
     person("Liam", "Hobby", , "liam.f.hobby@gsk.com", role = c("aut", "cre")),
     person("Christina", "Fillmore", , "christina.e.fillmore@gsk.com", role = "aut",
@@ -29,9 +29,9 @@ Suggests: covr, haven, pharmaversesdtm, safetyData, spelling, testthat
 Config/testthat/edition: 3
 Encoding: UTF-8
 Language: en-US
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 NeedsCompilation: no
-Packaged: 2025-07-15 18:40:42 UTC; lfh66519
+Packaged: 2026-04-28 11:12:23 UTC; lfh66519
 Author: Liam Hobby [aut, cre],
   Christina Fillmore [aut] (ORCID:
     <https://orcid.org/0000-0003-0595-2302>),
@@ -44,4 +44,4 @@ Author: Liam Hobby [aut, cre],
   Atorus Research LLC [cph, fnd]
 Maintainer: Liam Hobby <liam.f.hobby@gsk.com>
 Repository: CRAN
-Date/Publication: 2025-07-16 04:50:02 UTC
+Date/Publication: 2026-04-28 11:30:02 UTC
